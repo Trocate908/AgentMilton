@@ -1,0 +1,1109 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: auth
+    description: Owner-only authentication
+  - name: dashboard
+    description: Protected dashboard status
+  - name: github
+    description: Owner-only GitHub repository browsing and approved changes
+  - name: ai
+    description: Owner-only model catalogs and provider settings
+  - name: agent
+    description: Owner-only coding tasks and approval-controlled Git operations
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /auth/session:
+    get:
+      operationId: getAuthSession
+      tags: [auth]
+      summary: Get the current owner session
+      responses:
+        "200":
+          description: Current session state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OwnerSessionStatus"
+        "503":
+          description: Owner account is not initialized
+  /auth/login:
+    post:
+      operationId: loginOwner
+      tags: [auth]
+      summary: Authenticate the single owner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OwnerCredentials"
+      responses:
+        "200":
+          description: Owner authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OwnerLoginResponse"
+        "401":
+          description: Invalid credentials
+        "429":
+          description: Too many attempts
+  /auth/logout:
+    post:
+      operationId: logoutOwner
+      tags: [auth]
+      summary: Revoke the current owner session
+      responses:
+        "200":
+          description: Session revoked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+  /auth/password:
+    post:
+      operationId: changeOwnerPassword
+      tags: [auth]
+      summary: Change the owner's password and revoke active sessions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OwnerPasswordChange"
+      responses:
+        "200":
+          description: Password changed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Password policy or current password validation failed
+        "401":
+          description: Authentication required
+  /dashboard:
+    get:
+      operationId: getDashboardOverview
+      tags: [dashboard]
+      summary: Get private dashboard readiness and activity
+      responses:
+        "200":
+          description: Owner dashboard overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardOverview"
+        "401":
+          description: Authentication required
+        "403":
+          description: Password change required
+  /github/status:
+    get:
+      operationId: getGitHubStatus
+      tags: [github]
+      security:
+        - ownerSession: []
+      summary: Check the owner GitHub connection
+      responses:
+        "200":
+          description: GitHub connection status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GitHubStatusResponse"
+        "401":
+          description: Authentication required
+        "403":
+          description: Password change required
+  /github/repositories:
+    get:
+      operationId: listGitHubRepositories
+      tags: [github]
+      security:
+        - ownerSession: []
+      summary: List repositories available to the connected GitHub account
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: A page of repositories
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GitHubRepositoryList"
+        "401":
+          description: Authentication required
+        "502":
+          description: GitHub API unavailable
+  /github/repositories/{owner}/{repo}/branches:
+    get:
+      operationId: listGitHubBranches
+      tags: [github]
+      security:
+        - ownerSession: []
+      summary: List branches in a repository
+      parameters:
+        - name: owner
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: repo
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: A page of branches
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GitHubBranchList"
+        "401":
+          description: Authentication required
+        "502":
+          description: GitHub API unavailable
+  /github/repositories/{owner}/{repo}/tree:
+    get:
+      operationId: getGitHubRepositoryTree
+      tags: [github]
+      security:
+        - ownerSession: []
+      summary: Browse the file tree at a branch or commit
+      parameters:
+        - name: owner
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: repo
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: ref
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: path
+          in: query
+          required: false
+          schema:
+            type: string
+            default: ""
+      responses:
+        "200":
+          description: Repository tree entries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GitHubTreeResponse"
+        "400":
+          description: Invalid branch or path
+        "401":
+          description: Authentication required
+        "502":
+          description: GitHub API unavailable
+  /github/repositories/{owner}/{repo}/file:
+    get:
+      operationId: getGitHubRepositoryFile
+      tags: [github]
+      security:
+        - ownerSession: []
+      summary: Read a text file from a branch or commit
+      parameters:
+        - name: owner
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: repo
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: ref
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: path
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: File metadata and UTF-8 contents
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GitHubFileResponse"
+        "400":
+          description: Invalid or binary file
+        "401":
+          description: Authentication required
+        "404":
+          description: File not found
+        "502":
+          description: GitHub API unavailable
+  /github/repositories/{owner}/{repo}/commits:
+    get:
+      operationId: listGitHubCommits
+      tags: [github]
+      security:
+        - ownerSession: []
+      summary: Browse recent commits for a branch
+      parameters:
+        - name: owner
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: repo
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: sha
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 30
+      responses:
+        "200":
+          description: A page of commits
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GitHubCommitList"
+        "401":
+          description: Authentication required
+        "502":
+          description: GitHub API unavailable
+  /ai/models:
+    get:
+      operationId: listAiModels
+      tags: [ai]
+      security:
+        - ownerSession: []
+      summary: List models exposed by a configured provider
+      parameters:
+        - name: provider
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/AiProvider"
+      responses:
+        "200":
+          description: Provider model catalog
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiModelsResponse"
+        "401":
+          description: Authentication required
+        "502":
+          description: Provider unavailable or key rejected
+  /ai/settings:
+    get:
+      operationId: getAiSettings
+      tags: [ai]
+      security:
+        - ownerSession: []
+      summary: Read model selection and paid-usage safeguards
+      responses:
+        "200":
+          description: Current AI settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiSettings"
+        "401":
+          description: Authentication required
+    put:
+      operationId: updateAiSettings
+      tags: [ai]
+      security:
+        - ownerSession: []
+      summary: Update model selection and paid-usage safeguards
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiSettingsInput"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiSettings"
+        "400":
+          description: Invalid model or provider selection
+        "401":
+          description: Authentication required
+  /agent/tasks:
+    get:
+      operationId: listAgentTasks
+      tags: [agent]
+      security:
+        - ownerSession: []
+      summary: List recent coding tasks
+      responses:
+        "200":
+          description: Recent tasks
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentTaskList"
+        "401":
+          description: Authentication required
+    post:
+      operationId: createAgentTask
+      tags: [agent]
+      security:
+        - ownerSession: []
+      summary: Inspect a repository and prepare a proposed code change
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgentTaskInput"
+      responses:
+        "202":
+          description: Task queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentTask"
+        "400":
+          description: Invalid repository or task prompt
+        "401":
+          description: Authentication required
+        "502":
+          description: GitHub or selected model provider unavailable
+  /agent/tasks/{taskId}:
+    get:
+      operationId: getAgentTask
+      tags: [agent]
+      security:
+        - ownerSession: []
+      summary: Read task progress, conversation, changes, and test results
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Task detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentTask"
+        "401":
+          description: Authentication required
+        "404":
+          description: Task not found
+  /agent/tasks/{taskId}/messages:
+    post:
+      operationId: sendAgentTaskMessage
+      tags: [agent]
+      security:
+        - ownerSession: []
+      summary: Ask the agent to revise a task or address a test failure
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgentMessageInput"
+      responses:
+        "202":
+          description: Revision queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentTask"
+        "400":
+          description: Invalid message or task state
+        "401":
+          description: Authentication required
+        "404":
+          description: Task not found
+  /agent/tasks/{taskId}/tests:
+    post:
+      operationId: runAgentTaskTests
+      tags: [agent]
+      security:
+        - ownerSession: []
+      summary: Run an allow-listed repository test suite in an OS sandbox
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunTestsInput"
+      responses:
+        "200":
+          description: Test execution result, including explicit sandbox unavailability
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentTask"
+        "400":
+          description: Invalid suite or task state
+        "401":
+          description: Authentication required
+        "404":
+          description: Task not found
+  /agent/tasks/{taskId}/approve-push:
+    post:
+      operationId: approveAndPushAgentTask
+      tags: [agent]
+      security:
+        - ownerSession: []
+      summary: Commit and push reviewed changes to the task branch
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApprovalInput"
+      responses:
+        "200":
+          description: Changes committed and pushed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentTask"
+        "400":
+          description: Confirmation missing, tests not passed, or task is not reviewable
+        "401":
+          description: Authentication required
+        "404":
+          description: Task not found
+        "409":
+          description: Feature branch changed; no force push was attempted
+  /agent/tasks/{taskId}/pull-request:
+    post:
+      operationId: createAgentTaskPullRequest
+      tags: [agent]
+      security:
+        - ownerSession: []
+      summary: Create a pull request without merging it
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PullRequestInput"
+      responses:
+        "201":
+          description: Pull request created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentTask"
+        "400":
+          description: Task must be pushed before opening a pull request
+        "401":
+          description: Authentication required
+        "404":
+          description: Task not found
+components:
+  securitySchemes:
+    ownerSession:
+      type: apiKey
+      in: cookie
+      name: agentmilton.sid
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    OwnerSessionStatus:
+      type: object
+      properties:
+        authenticated:
+          type: boolean
+        username:
+          type: ["string", "null"]
+        mustChangePassword:
+          type: boolean
+      required: [authenticated, username, mustChangePassword]
+    OwnerCredentials:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 100
+        password:
+          type: string
+          minLength: 1
+          maxLength: 256
+      required: [username, password]
+    OwnerLoginResponse:
+      type: object
+      properties:
+        username:
+          type: string
+        mustChangePassword:
+          type: boolean
+      required: [username, mustChangePassword]
+    OwnerPasswordChange:
+      type: object
+      properties:
+        currentPassword:
+          type: string
+          minLength: 1
+          maxLength: 256
+        newPassword:
+          type: string
+          minLength: 12
+          maxLength: 256
+      required: [currentPassword, newPassword]
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+      required: [success]
+    DashboardProviderStatus:
+      type: object
+      properties:
+        configured:
+          type: boolean
+        label:
+          type: string
+      required: [configured, label]
+    DashboardOverview:
+      type: object
+      properties:
+        ownerUsername:
+          type: string
+        github:
+          $ref: "#/components/schemas/DashboardProviderStatus"
+        openRouter:
+          $ref: "#/components/schemas/DashboardProviderStatus"
+        gemini:
+          $ref: "#/components/schemas/DashboardProviderStatus"
+        deepseek:
+          $ref: "#/components/schemas/DashboardProviderStatus"
+        activeTaskCount:
+          type: integer
+        recentTasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecentTask"
+      required:
+        - ownerUsername
+        - github
+        - openRouter
+        - gemini
+        - deepseek
+        - activeTaskCount
+        - recentTasks
+    RecentTask:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        status:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, title, status, updatedAt]
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+    GitHubStatusResponse:
+      type: object
+      properties:
+        connected:
+          type: boolean
+        username:
+          type: ["string", "null"]
+      required: [connected, username]
+    GitHubRepository:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        fullName:
+          type: string
+        private:
+          type: boolean
+        defaultBranch:
+          type: string
+        description:
+          type: ["string", "null"]
+        htmlUrl:
+          type: string
+        updatedAt:
+          type: ["string", "null"]
+          format: date-time
+      required: [id, name, fullName, private, defaultBranch, description, htmlUrl, updatedAt]
+    GitHubRepositoryList:
+      type: object
+      properties:
+        repositories:
+          type: array
+          items:
+            $ref: "#/components/schemas/GitHubRepository"
+        page:
+          type: integer
+        perPage:
+          type: integer
+        hasNext:
+          type: boolean
+      required: [repositories, page, perPage, hasNext]
+    GitHubBranch:
+      type: object
+      properties:
+        name:
+          type: string
+        commitSha:
+          type: string
+        protected:
+          type: boolean
+      required: [name, commitSha, protected]
+    GitHubBranchList:
+      type: object
+      properties:
+        branches:
+          type: array
+          items:
+            $ref: "#/components/schemas/GitHubBranch"
+        page:
+          type: integer
+        perPage:
+          type: integer
+        hasNext:
+          type: boolean
+      required: [branches, page, perPage, hasNext]
+    GitHubTreeEntry:
+      type: object
+      properties:
+        path:
+          type: string
+        type:
+          type: string
+          enum: [file, directory]
+        size:
+          type: ["integer", "null"]
+      required: [path, type, size]
+    GitHubTreeResponse:
+      type: object
+      properties:
+        ref:
+          type: string
+        path:
+          type: string
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/GitHubTreeEntry"
+        truncated:
+          type: boolean
+      required: [ref, path, entries, truncated]
+    GitHubFileResponse:
+      type: object
+      properties:
+        path:
+          type: string
+        ref:
+          type: string
+        sha:
+          type: string
+        size:
+          type: integer
+        content:
+          type: string
+        htmlUrl:
+          type: string
+      required: [path, ref, sha, size, content, htmlUrl]
+    GitHubCommit:
+      type: object
+      properties:
+        sha:
+          type: string
+        message:
+          type: string
+        authorName:
+          type: ["string", "null"]
+        authorDate:
+          type: ["string", "null"]
+          format: date-time
+        htmlUrl:
+          type: string
+      required: [sha, message, authorName, authorDate, htmlUrl]
+    GitHubCommitList:
+      type: object
+      properties:
+        commits:
+          type: array
+          items:
+            $ref: "#/components/schemas/GitHubCommit"
+        page:
+          type: integer
+        perPage:
+          type: integer
+        hasNext:
+          type: boolean
+      required: [commits, page, perPage, hasNext]
+    AiProvider:
+      type: string
+      enum: [openrouter, gemini, deepseek]
+    AiPriceStatus:
+      type: string
+      enum: [free, paid, unknown]
+    AiModel:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        provider:
+          $ref: "#/components/schemas/AiProvider"
+        priceStatus:
+          $ref: "#/components/schemas/AiPriceStatus"
+        promptPricePerToken:
+          type: ["number", "null"]
+        completionPricePerToken:
+          type: ["number", "null"]
+        contextLength:
+          type: ["integer", "null"]
+      required: [id, name, provider, priceStatus, promptPricePerToken, completionPricePerToken, contextLength]
+    AiModelsResponse:
+      type: object
+      properties:
+        provider:
+          $ref: "#/components/schemas/AiProvider"
+        configured:
+          type: boolean
+        models:
+          type: array
+          items:
+            $ref: "#/components/schemas/AiModel"
+        error:
+          type: ["string", "null"]
+      required: [provider, configured, models, error]
+    AiSettings:
+      type: object
+      properties:
+        primaryProvider:
+          $ref: "#/components/schemas/AiProvider"
+        primaryModel:
+          type: ["string", "null"]
+        fallbackProvider:
+          $ref: "#/components/schemas/AiProvider"
+        fallbackModel:
+          type: ["string", "null"]
+        allowPaidModels:
+          type: boolean
+        allowPaidFallback:
+          type: boolean
+      required: [primaryProvider, primaryModel, fallbackProvider, fallbackModel, allowPaidModels, allowPaidFallback]
+    AiSettingsInput:
+      type: object
+      properties:
+        primaryProvider:
+          $ref: "#/components/schemas/AiProvider"
+        primaryModel:
+          type: ["string", "null"]
+        fallbackProvider:
+          $ref: "#/components/schemas/AiProvider"
+        fallbackModel:
+          type: ["string", "null"]
+        allowPaidModels:
+          type: boolean
+        allowPaidFallback:
+          type: boolean
+      required: [primaryProvider, primaryModel, fallbackProvider, fallbackModel, allowPaidModels, allowPaidFallback]
+    AgentTaskStatus:
+      type: string
+      enum: [queued, inspecting, planning, generating, draft, testing, tests_passed, tests_failed, test_blocked, pushing, pushed, pull_request, failed, interrupted]
+    AgentTestStatus:
+      type: string
+      enum: [not_run, running, passed, failed, blocked]
+    AgentTaskSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        repositoryFullName:
+          type: string
+        baseBranch:
+          type: string
+        featureBranch:
+          type: ["string", "null"]
+        prompt:
+          type: string
+        title:
+          type: string
+        status:
+          $ref: "#/components/schemas/AgentTaskStatus"
+        progress:
+          type: integer
+        provider:
+          $ref: "#/components/schemas/AiProvider"
+        model:
+          type: string
+        summary:
+          type: ["string", "null"]
+        testStatus:
+          $ref: "#/components/schemas/AgentTestStatus"
+        estimatedCostUsd:
+          type: ["number", "null"]
+        promptTokens:
+          type: integer
+        completionTokens:
+          type: integer
+        commitSha:
+          type: ["string", "null"]
+        pullRequestUrl:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, repositoryFullName, baseBranch, featureBranch, prompt, title, status, progress, provider, model, summary, testStatus, estimatedCostUsd, promptTokens, completionTokens, commitSha, pullRequestUrl, createdAt, updatedAt]
+    AgentTaskFile:
+      type: object
+      properties:
+        path:
+          type: string
+        operation:
+          type: string
+          enum: [upsert, delete]
+        beforeContent:
+          type: ["string", "null"]
+        afterContent:
+          type: ["string", "null"]
+        patch:
+          type: string
+      required: [path, operation, beforeContent, afterContent, patch]
+    AgentTaskEvent:
+      type: object
+      properties:
+        eventType:
+          type: string
+        message:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required: [eventType, message, createdAt]
+    AgentTaskMessage:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [owner, assistant]
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required: [role, content, createdAt]
+    AgentTask:
+      allOf:
+        - $ref: "#/components/schemas/AgentTaskSummary"
+        - type: object
+          properties:
+            plan:
+              type: array
+              items:
+                type: string
+            testSuite:
+              type: ["string", "null"]
+            testOutput:
+              type: ["string", "null"]
+            testExitCode:
+              type: ["integer", "null"]
+            events:
+              type: array
+              items:
+                $ref: "#/components/schemas/AgentTaskEvent"
+            files:
+              type: array
+              items:
+                $ref: "#/components/schemas/AgentTaskFile"
+            messages:
+              type: array
+              items:
+                $ref: "#/components/schemas/AgentTaskMessage"
+          required: [plan, testSuite, testOutput, testExitCode, events, files, messages]
+    AgentTaskList:
+      type: array
+      items:
+        $ref: "#/components/schemas/AgentTaskSummary"
+    AgentTaskInput:
+      type: object
+      properties:
+        repositoryFullName:
+          type: string
+          minLength: 3
+          maxLength: 250
+        baseBranch:
+          type: string
+          minLength: 1
+          maxLength: 250
+        prompt:
+          type: string
+          minLength: 3
+          maxLength: 12000
+      required: [repositoryFullName, baseBranch, prompt]
+    AgentMessageInput:
+      type: object
+      properties:
+        content:
+          type: string
+          minLength: 2
+          maxLength: 12000
+      required: [content]
+    RunTestsInput:
+      type: object
+      properties:
+        suite:
+          type: string
+          enum: [test, lint, typecheck, build]
+      required: [suite]
+    ApprovalInput:
+      type: object
+      properties:
+        confirmation:
+          type: string
+          enum: [PUSH]
+      required: [confirmation]
+    PullRequestInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 250
+        body:
+          type: string
+          maxLength: 30000
+      required: [title, body]
+
