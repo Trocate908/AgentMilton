@@ -67,7 +67,7 @@ export function WorkspaceShell({ children, username }: Props) {
           <button type="button" data-testid="button-sign-out-mobile" onClick={signOut} disabled={logout.isPending} className="flex items-center gap-1.5"><LogOut size={13} /> Sign out</button>
         </div>
       </aside>
-      <main className="min-h-[calc(100dvh-120px)] flex-1 md:ml-[248px]">
+      <main className="min-h-[calc(100dvh-120px)] flex-1 bg-[radial-gradient(circle_at_top_right,hsl(var(--primary)/.07),transparent_34rem)] md:ml-[248px]">
         <header className="hidden h-[61px] items-center justify-between border-b border-border/80 px-8 md:flex">
           <div className="mono flex items-center gap-2 text-[10px] uppercase tracking-[.14em] text-muted-foreground"><ShieldCheck size={13} className="text-primary" /> Owner environment <span className="text-border">/</span> {location.startsWith('/settings') ? 'Settings' : location.startsWith('/repositories') ? 'Repositories' : location.startsWith('/tasks') ? 'Tasks' : 'Overview'}</div>
           <div className="mono flex items-center gap-2 text-[10px] text-muted-foreground"><span className="size-1.5 rounded-full bg-primary" /> SESSION PRIVATE</div>
