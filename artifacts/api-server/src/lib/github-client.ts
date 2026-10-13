@@ -181,7 +181,11 @@ function hasNextPage(link: string | null): boolean {
 
 export class GitHubClient {
   private readonly proxyFetch: typeof fetch;
-  private readonly token = process.env.GITHUB_TOKEN?.trim();
+  private readonly token = (
+    process.env.GITHUB_TOKEN?.trim() ||
+    process.env.GH_TOKEN?.trim() ||
+    process.env.GITHUB_PAT?.trim()
+  );
 
   constructor() {
     this.proxyFetch = fetch;
