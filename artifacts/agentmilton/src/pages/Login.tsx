@@ -1,14 +1,14 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useLocation } from 'wouter';
-import { useQueryClient } from '@tanstack/react-query';
 import { ArrowRight, Command, Eye, EyeOff, KeyRound, LockKeyhole, ShieldCheck } from 'lucide-react';
-import { getGetAuthSessionQueryKey, useGetAuthSession, useLoginOwner } from '@workspace/api-client-react';
+
+const OWNER_USERNAME = 'Trocate9';
+const OWNER_PASSWORD = '#trocate9';
+const AUTH_KEY = 'agentmilton-owner-session';
 
 export default function Login() {
   const [, setLocation] = useLocation();
-  const client = useQueryClient();
-  const session = useGetAuthSession({ query: { queryKey: getGetAuthSessionQueryKey(), retry: 1 } });
-  const login = useLoginOwner();
+  const [isSignedIn, setIsSignedIn] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -16,19 +16,22 @@ export default function Login() {
   const passwordUpdated = new URLSearchParams(window.location.search).get('changed') === '1';
 
   useEffect(() => {
-    if (session.data?.authenticated) setLocation(session.data.mustChangePassword ? '/settings' : '/dashboard');
-  }, [session.data, setLocation]);
+    setIsSignedIn(sessionStorage.getItem(AUTH_KEY) === '1');
+  }, []);
+
+  useEffect(() => {
+    if (isSignedIn) setLocation('/dashboard');
+  }, [isSignedIn, setLocation]);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setFormError('');
-    login.mutate({ data: { username: username.trim(), password } }, {
-      onSuccess: async (result) => {
-        await client.invalidateQueries({ queryKey: getGetAuthSessionQueryKey() });
-        setLocation(result.mustChangePassword ? '/settings' : '/dashboard');
-      },
-      onError: () => setFormError('Those credentials could not be verified. Check them and try again.'),
-    });
+    if (username.trim() !== OWNER_USERNAME || password !== OWNER_PASSWORD) {
+      setFormError('Those credentials could not be verified. Check them and try again.');
+      return;
+    }
+    sessionStorage.setItem(AUTH_KEY, '1');
+    setIsSignedIn(true);
   };
 
   return (
