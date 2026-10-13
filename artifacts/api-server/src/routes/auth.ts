@@ -18,6 +18,7 @@ import {
   clearFailedLogins,
   clearOwnerSessionCookie,
   createOwnerSession,
+  DEFAULT_OWNER_PASSWORD_HASH,
   ensureOwnerAccount,
   getOwnerSession,
   hashClientAddress,
@@ -85,10 +86,32 @@ router.post("/auth/login", async (req, res, next): Promise<void> => {
       parsed.data.username,
       owner.username,
     );
-    const validPassword = await verifyOwnerPassword(
+    let validPassword = await verifyOwnerPassword(
       parsed.data.password,
       owner.passwordHash,
     );
+
+    // Existing local databases may contain the account created before the
+    // private default credentials were configured. Allow that first-login
+    // bootstrap to reconcile the stored account without replacing a password
+    // the owner has already changed.
+    if (
+      !validPassword &&
+      owner.mustChangePassword &&
+      parsed.data.username === owner.username
+    ) {
+      validPassword = await verifyOwnerPassword(
+        parsed.data.password,
+        DEFAULT_OWNER_PASSWORD_HASH,
+      );
+      if (validPassword) {
+        await db
+          .update(ownerAccountsTable)
+          .set({ passwordHash: DEFAULT_OWNER_PASSWORD_HASH, updatedAt: new Date() })
+          .where(eq(ownerAccountsTable.id, owner.id));
+      }
+    }
+
     if (!validUsername || !validPassword) {
       await recordFailedLogin(addressHash);
       res.status(401).json({ error: "Username or password is incorrect." });
