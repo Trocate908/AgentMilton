@@ -99,7 +99,17 @@ export async function ensureOwnerAccount(): Promise<OwnerAccount> {
     .from(ownerAccountsTable)
     .where(eq(ownerAccountsTable.id, OWNER_ID))
     .limit(1);
-  if (existing) return existing;
+  if (existing) {
+    if (existing.mustChangePassword && existing.username !== OWNER_USERNAME) {
+      const [updated] = await db
+        .update(ownerAccountsTable)
+        .set({ username: OWNER_USERNAME, updatedAt: new Date() })
+        .where(eq(ownerAccountsTable.id, OWNER_ID))
+        .returning();
+      return updated ?? existing;
+    }
+    return existing;
+  }
 
   const passwordHash = process.env.OWNER_BOOTSTRAP_PASSWORD
     ? await hashOwnerPassword(process.env.OWNER_BOOTSTRAP_PASSWORD)
