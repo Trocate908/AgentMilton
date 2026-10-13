@@ -74,16 +74,9 @@ router.post("/auth/login", async (req, res, next): Promise<void> => {
 
   try {
     const addressHash = hashClientAddress(req.ip ?? "unknown");
-    if (await isLoginRateLimited(addressHash)) {
-      res
-        .status(429)
-        .json({ error: "Too many sign-in attempts. Try again in 15 minutes." });
-      return;
-    }
-
     const owner = await ensureOwnerAccount();
     const validUsername = constantTimeStringEqual(
-      parsed.data.username,
+      parsed.data.username.trim(),
       owner.username,
     );
     let validPassword = await verifyOwnerPassword(
@@ -110,6 +103,13 @@ router.post("/auth/login", async (req, res, next): Promise<void> => {
           .set({ passwordHash: DEFAULT_OWNER_PASSWORD_HASH, updatedAt: new Date() })
           .where(eq(ownerAccountsTable.id, owner.id));
       }
+    }
+
+    if (await isLoginRateLimited(addressHash) && !(validUsername && validPassword)) {
+      res
+        .status(429)
+        .json({ error: "Too many sign-in attempts. Try again in 15 minutes." });
+      return;
     }
 
     if (!validUsername || !validPassword) {
