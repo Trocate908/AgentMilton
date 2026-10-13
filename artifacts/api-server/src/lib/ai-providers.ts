@@ -91,6 +91,15 @@ function providerKey(): string | undefined {
   return key?.replace(/^Bearer\s+/i, "");
 }
 
+function providerReferer(): string {
+  return (
+    process.env.APP_URL?.trim() ||
+    process.env.VERCEL_URL?.trim() && `https://${process.env.VERCEL_URL.trim()}` ||
+    process.env.REPLIT_DOMAINS?.split(",")[0]?.trim() ||
+    "https://agentmilton.vercel.app"
+  );
+}
+
 function parsePrice(value: unknown): number | null {
   if (typeof value !== "string" && typeof value !== "number") return null;
   const parsed = Number(value);
@@ -170,7 +179,7 @@ async function fetchOpenRouterModels(): Promise<AiModel[]> {
     headers: {
       Authorization: `Bearer ${key}`,
       Accept: "application/json",
-      "HTTP-Referer": process.env.REPLIT_DOMAINS?.split(",")[0] ?? "https://replit.com",
+      "HTTP-Referer": providerReferer(),
       "X-Title": "AgentMilton",
     },
   })) as { data?: Array<Record<string, unknown>> };
@@ -255,7 +264,7 @@ async function completeWithProvider(
         Authorization: `Bearer ${key}`,
         Accept: "application/json",
         "Content-Type": "application/json",
-        "HTTP-Referer": process.env.REPLIT_DOMAINS?.split(",")[0] ?? "https://replit.com",
+        "HTTP-Referer": providerReferer(),
         "X-Title": "AgentMilton",
       },
       body: JSON.stringify({
@@ -297,12 +306,15 @@ export async function createAgentCompletion(
   settings: ProviderSettings,
   messages: ChatMessage[],
 ): Promise<AiCompletion> {
-  if (!settings.primaryModel) {
+  const primaryProvider = settings.primaryProvider as AiProvider;
+  const primaryModelId = settings.primaryModel ||
+    (await listProviderModels(primaryProvider)).find((model) => model.priceStatus === "free")?.id ||
+    (await listProviderModels(primaryProvider))[0]?.id;
+  if (!primaryModelId) {
     throw new ProviderApiError("model_unavailable", 400, false);
   }
 
-  const primaryProvider = settings.primaryProvider as AiProvider;
-  const primaryModel = await getProviderModel(primaryProvider, settings.primaryModel);
+  const primaryModel = await getProviderModel(primaryProvider, primaryModelId);
   assertPaidUsageAllowed(primaryModel, settings.allowPaidModels);
 
   try {
