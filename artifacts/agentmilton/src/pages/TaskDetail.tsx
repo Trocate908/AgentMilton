@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useParams } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import { getGetAgentTaskQueryKey, useGetAgentTask, useSendAgentTaskMessage, getListAgentTasksQueryKey } from '@workspace/api-client-react';
-import { ArrowLeft, Bot, CircleDot, Clock3, FileCode2, GitBranch, LockKeyhole, Send, ShieldAlert, UserRound } from 'lucide-react';
+import { ArrowLeft, Bot, CircleDot, Clock3, FileCode2, GitBranch, LockKeyhole, MessageSquareText, Send, ShieldAlert, UserRound } from 'lucide-react';
 import { ErrorPanel } from '@/components/WorkspaceShell';
 import { Link } from 'wouter';
 
@@ -15,12 +15,12 @@ export default function TaskDetail() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const task = taskQuery.data;
-  const submit = (e: FormEvent) => { e.preventDefault(); if (!message.trim() || message.trim().length < 2) return; setError(''); send.mutate({ taskId, data: { content: message.trim() } }, { onSuccess: async (updated) => { queryClient.setQueryData(getGetAgentTaskQueryKey(taskId), updated); await queryClient.invalidateQueries({ queryKey: getListAgentTasksQueryKey() }); setMessage(''); }, onError: () => setError('Message could not be sent. Try again.') }); };
+  const submit = (e: FormEvent) => { e.preventDefault(); if (!message.trim() || message.trim().length < 2) return; setError(''); send.mutate({ taskId, data: { content: message.trim() } }, { onSuccess: async (updated) => { queryClient.setQueryData(getGetAgentTaskQueryKey(taskId), updated); await queryClient.invalidateQueries({ queryKey: getListAgentTasksQueryKey() }); setMessage(''); }, onError: (failure) => setError(getSafeApiError(failure)) }); };
   return <div className="px-5 pb-12 pt-8 md:px-10 md:pt-10"><div className="mx-auto max-w-6xl">
     <Link href="/tasks" className="mono inline-flex items-center gap-2 text-[10px] uppercase tracking-[.15em] text-muted-foreground hover:text-primary"><ArrowLeft size={13} /> Task desk</Link>
     {taskQuery.isLoading && <div className="mt-7 space-y-4"><div className="h-12 w-2/3 animate-pulse rounded bg-muted" /><div className="h-44 animate-pulse rounded-2xl bg-card" /><div className="h-60 animate-pulse rounded-2xl bg-card" /></div>}
     {taskQuery.isError && <div className="mt-7"><ErrorPanel title="Task record unavailable" onRetry={() => void taskQuery.refetch()} /></div>}
-    {task && <><div className="mt-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-start"><div className="min-w-0"><div className="mono flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[.15em] text-muted-foreground"><span>{task.repositoryFullName}</span><span className="text-border">/</span><span>{task.baseBranch}</span></div><h1 className="mt-3 font-serif text-[clamp(27px,4.5vw,44px)] font-semibold leading-tight tracking-[-.05em]">{task.title}</h1><p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{task.summary || task.prompt}</p></div><span className="mono inline-flex items-center gap-2 self-start rounded-lg border border-primary/25 bg-primary/[.06] px-3 py-2 text-[10px] uppercase text-primary"><CircleDot size={12} />{task.status.replaceAll('_', ' ')}</span></div>
+     {task && <><div className="mt-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-start"><div className="min-w-0"><div className="mono flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[.15em] text-muted-foreground"><span>{task.repositoryFullName}</span><span className="text-border">/</span><span>{task.baseBranch}</span></div><h1 className="mt-3 font-serif text-[clamp(27px,4.5vw,44px)] font-semibold leading-tight tracking-[-.05em]">{task.title}</h1><p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{task.summary || task.prompt}</p></div><div className="flex shrink-0 flex-wrap items-center gap-2"><span className="mono inline-flex items-center gap-2 rounded-lg border border-primary/25 bg-primary/[.06] px-3 py-2 text-[10px] uppercase text-primary"><CircleDot size={12} />{task.status.replaceAll('_', ' ')}</span><Link href={`/tasks/${task.id}/chat`} data-testid="link-open-task-chat" className="inline-flex h-9 items-center gap-2 rounded-lg border border-primary/25 bg-primary/[.08] px-3 text-xs font-semibold text-primary transition hover:bg-primary/[.14]"><MessageSquareText size={14} /> Open chat</Link></div></div>
     <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4"><Metric label="Progress" value={`${Math.max(0, Math.min(100, task.progress))}%`} /><Metric label="Model" value={task.model} /><Metric label="Estimated cost" value={currency(task.estimatedCostUsd)} /><Metric label="Usage" value={`${task.promptTokens.toLocaleString()} in · ${task.completionTokens.toLocaleString()} out`} /></div>
     <div className="mt-5 rounded-xl border border-amber-200/20 bg-amber-100/[.035] p-4"><div className="flex items-start gap-3"><ShieldAlert size={16} className="mt-0.5 shrink-0 text-amber-200" /><div><p className="text-xs font-semibold text-amber-100">Execution is intentionally blocked</p><p className="mt-1 text-xs leading-5 text-muted-foreground">This workspace prepares reviewable drafts only. Repository commands are not run; tests are marked blocked. Push, commit, and pull-request actions are unavailable.</p><p className="mono mt-2 text-[10px] text-amber-100/75">TEST STATUS · {task.testStatus.replaceAll('_', ' ')}</p></div></div>{task.testOutput && <pre className="mt-3 max-h-40 overflow-auto rounded-lg border border-border bg-background/70 p-3 text-[10px] leading-5 text-muted-foreground">{task.testOutput}</pre>}</div>
     <div className="mt-5 grid gap-5 xl:grid-cols-[1.05fr_.95fr]">
@@ -35,3 +35,12 @@ export default function TaskDetail() {
 }
 function Metric({ label, value }: { label: string; value: string }) { return <div className="min-w-0 rounded-xl border border-border bg-card p-4"><p className="mono text-[9px] uppercase tracking-[.12em] text-muted-foreground">{label}</p><p title={value} className="mt-2 truncate text-sm font-semibold">{value}</p></div>; }
 function Meta({ label, value }: { label: string; value: string }) { return <div className="flex justify-between gap-4 border-b border-border/70 pb-3 last:border-0 last:pb-0"><span className="text-muted-foreground">{label}</span><span className="max-w-[68%] break-all text-right font-medium">{value}</span></div>; }
+function getSafeApiError(error: unknown): string {
+  if (error && typeof error === 'object' && 'data' in error) {
+    const data = (error as { data?: unknown }).data;
+    if (data && typeof data === 'object' && 'error' in data && typeof (data as { error?: unknown }).error === 'string') {
+      return (data as { error: string }).error;
+    }
+  }
+  return 'Message could not be sent. Try again.';
+}

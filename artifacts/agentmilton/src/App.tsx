@@ -14,6 +14,7 @@ import Repositories from '@/pages/Repositories';
 import RepositoryDetail from '@/pages/RepositoryDetail';
 import Tasks from '@/pages/Tasks';
 import TaskDetail from '@/pages/TaskDetail';
+import TaskChat from '@/pages/TaskChat';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 15_000, refetchOnWindowFocus: false } },
@@ -64,6 +65,7 @@ function Router() {
         <Route path="/repositories" component={() => <ProtectedPage>{() => <Repositories />}</ProtectedPage>} />
         <Route path="/repositories/:owner/:repo" component={() => <ProtectedPage>{() => <RepositoryDetail />}</ProtectedPage>} />
         <Route path="/tasks" component={() => <ProtectedPage>{() => <Tasks />}</ProtectedPage>} />
+        <Route path="/tasks/:taskId/chat" component={() => <ProtectedPage>{() => <TaskChat />}</ProtectedPage>} />
         <Route path="/tasks/:taskId" component={() => <ProtectedPage>{() => <TaskDetail />}</ProtectedPage>} />
         <Route path="/settings" component={SettingsRoute} />
         <Route component={NotFound} />

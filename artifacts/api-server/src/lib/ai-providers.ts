@@ -41,6 +41,7 @@ export class ProviderApiError extends Error {
     readonly code:
       | "provider_not_configured"
       | "credentials_rejected"
+      | "provider_access_denied"
       | "rate_limited"
       | "quota_exceeded"
       | "provider_unavailable"
@@ -65,7 +66,9 @@ function safeProviderErrorMessage(code: ProviderApiError["code"]): string {
     case "provider_not_configured":
       return "The OpenRouter server-side API key is not configured.";
     case "credentials_rejected":
-      return "The provider rejected its API key. Replace that key in Replit Secrets.";
+      return "OpenRouter rejected the API key. Replace OPENROUTER_API_KEY in Replit Secrets with a current key.";
+    case "provider_access_denied":
+      return "OpenRouter denied access to this request. Check that the key is active and the selected model is available to your account.";
     case "rate_limited":
       return "The provider rate limit was reached. Try again later.";
     case "quota_exceeded":
@@ -84,7 +87,8 @@ function safeProviderErrorMessage(code: ProviderApiError["code"]): string {
 }
 
 function providerKey(): string | undefined {
-  return process.env.OPENROUTER_API_KEY;
+  const key = process.env.OPENROUTER_API_KEY?.trim();
+  return key?.replace(/^Bearer\s+/i, "");
 }
 
 function parsePrice(value: unknown): number | null {
@@ -103,8 +107,11 @@ function responseError(
   body: unknown,
 ): ProviderApiError {
   const text = JSON.stringify(body ?? "").toLowerCase();
-  if (status === 401 || status === 403) {
+  if (status === 401) {
     return new ProviderApiError("credentials_rejected", status, false);
+  }
+  if (status === 403) {
+    return new ProviderApiError("provider_access_denied", status, false);
   }
   if (status === 402 || text.includes("insufficient") || text.includes("quota exceeded")) {
     return new ProviderApiError("quota_exceeded", status, true);

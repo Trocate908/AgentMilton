@@ -1,1 +1,0 @@
-- [OpenAPI client DOM types](openapi-client-dom-types.md) — keep `DOM.Iterable` enabled because generated fetch client code uses `Headers.entries()`.
