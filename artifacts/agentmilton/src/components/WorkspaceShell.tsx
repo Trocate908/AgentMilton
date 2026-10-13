@@ -1,28 +1,23 @@
 import { type ReactNode } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Activity, ArrowUpRight, Command, LayoutDashboard, LogOut, Settings2, ShieldCheck, FolderGit2, Workflow } from 'lucide-react';
-import { useLogoutOwner, getGetAuthSessionQueryKey, useHealthCheck, getHealthCheckQueryKey } from '@workspace/api-client-react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useHealthCheck, getHealthCheckQueryKey } from '@workspace/api-client-react';
 
 type Props = { children: ReactNode; username: string };
 
 export function WorkspaceShell({ children, username }: Props) {
   const [location, setLocation] = useLocation();
-  const queryClient = useQueryClient();
   const health = useHealthCheck({ query: { retry: 1, queryKey: getHealthCheckQueryKey() } });
-  const logout = useLogoutOwner();
   const nav = [
     { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
     { href: '/repositories', label: 'Repositories', icon: FolderGit2 },
     { href: '/tasks', label: 'Tasks', icon: Workflow },
     { href: '/settings', label: 'Settings', icon: Settings2 },
   ];
-  const signOut = () => logout.mutate(undefined, {
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: getGetAuthSessionQueryKey() });
-      setLocation('/login');
-    },
-  });
+  const signOut = () => {
+    sessionStorage.removeItem('agentmilton-owner-session');
+    setLocation('/login');
+  };
   const apiState = health.isLoading ? 'Checking' : health.isError ? 'Unavailable' : 'Operational';
 
   return (
