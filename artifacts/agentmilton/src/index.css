@@ -291,6 +291,13 @@
 }
 .mono { font-family: var(--app-font-mono); }
 
+.surface-lift { transition: border-color .2s ease, background-color .2s ease, transform .2s ease, box-shadow .2s ease; }
+.surface-lift:hover { border-color: hsl(var(--primary) / .28); background-color: hsl(var(--card) / .92); box-shadow: 0 14px 34px hsl(220 35% 3% / .16); transform: translateY(-1px); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+
 /**
  * Using the elevate system.
  * Automatic contrast adjustment.
