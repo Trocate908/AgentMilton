@@ -1,7 +1,5 @@
-import { ReplitConnectors } from "@replit/connectors-sdk";
-
-const CONNECTOR_NAME = "github-source-control";
 const API_ROOT = "https://api.github.com";
+const DEFAULT_GITHUB_USERNAME = "Trocate908";
 const API_VERSION = "2022-11-28";
 const MAX_TEXT_FILE_BYTES = 1_000_000;
 const BLOCKED_PATH_PARTS = new Set([".git", "node_modules"]);
@@ -183,9 +181,10 @@ function hasNextPage(link: string | null): boolean {
 
 export class GitHubClient {
   private readonly proxyFetch: typeof fetch;
+  private readonly token = process.env.GITHUB_TOKEN?.trim();
 
   constructor() {
-    this.proxyFetch = new ReplitConnectors().createProxyFetch(CONNECTOR_NAME);
+    this.proxyFetch = fetch;
   }
 
   private async request<T>(
@@ -201,6 +200,7 @@ export class GitHubClient {
           "X-GitHub-Api-Version": API_VERSION,
           "Content-Type": "application/json",
           "User-Agent": "AgentMilton",
+          ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
         },
         body: options.body === undefined ? undefined : JSON.stringify(options.body),
         redirect: "error",
@@ -223,6 +223,7 @@ export class GitHubClient {
   }
 
   async getUser(): Promise<string | null> {
+    if (!this.token) return process.env.GITHUB_USERNAME?.trim() || DEFAULT_GITHUB_USERNAME;
     const { data } = await this.request<{ login?: unknown }>("/user");
     return typeof data.login === "string" ? data.login : null;
   }
@@ -231,9 +232,13 @@ export class GitHubClient {
     page: number,
     perPage: number,
   ): Promise<{ repositories: GitHubRepository[]; hasNext: boolean }> {
+    const username = process.env.GITHUB_USERNAME?.trim() || DEFAULT_GITHUB_USERNAME;
+    const endpoint = this.token
+      ? `/user/repos?type=all&sort=updated&per_page=${perPage}&page=${page}`
+      : `/users/${encodeURIComponent(username)}/repos?type=owner&sort=updated&per_page=${perPage}&page=${page}`;
     const { data, headers } = await this.request<
       Array<Record<string, unknown>>
-    >(`/user/repos?type=all&sort=updated&per_page=${perPage}&page=${page}`);
+    >(endpoint);
     return {
       repositories: data.map((item) => ({
         id: Number(item.id),
