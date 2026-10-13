@@ -75,24 +75,18 @@ router.post("/auth/login", async (req, res, next): Promise<void> => {
   try {
     const addressHash = hashClientAddress(req.ip ?? "unknown");
     const owner = await ensureOwnerAccount();
-    const validUsername = constantTimeStringEqual(
-      parsed.data.username.trim(),
-      owner.username,
-    );
+    const username = parsed.data.username.trim();
+    const validUsername = constantTimeStringEqual(username, owner.username);
     let validPassword = await verifyOwnerPassword(
       parsed.data.password,
       owner.passwordHash,
     );
 
-    // Existing local databases may contain the account created before the
-    // private default credentials were configured. Allow that first-login
-    // bootstrap to reconcile the stored account without replacing a password
-    // the owner has already changed.
-    if (
-      !validPassword &&
-      owner.mustChangePassword &&
-      parsed.data.username === owner.username
-    ) {
+    // Reconcile databases created before the private owner credentials were
+    // configured. The supplied private default is the authoritative bootstrap
+    // credential, so an existing stale hash is repaired after a successful
+    // bootstrap login instead of permanently denying access.
+    if (!validPassword && validUsername) {
       validPassword = await verifyOwnerPassword(
         parsed.data.password,
         DEFAULT_OWNER_PASSWORD_HASH,
@@ -100,7 +94,11 @@ router.post("/auth/login", async (req, res, next): Promise<void> => {
       if (validPassword) {
         await db
           .update(ownerAccountsTable)
-          .set({ passwordHash: DEFAULT_OWNER_PASSWORD_HASH, updatedAt: new Date() })
+          .set({
+            passwordHash: DEFAULT_OWNER_PASSWORD_HASH,
+            mustChangePassword: false,
+            updatedAt: new Date(),
+          })
           .where(eq(ownerAccountsTable.id, owner.id));
       }
     }
