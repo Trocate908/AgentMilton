@@ -1,3 +1,11 @@
 {
-  "outputDirectory": "artifacts/agentmilton/dist/public"
+  "version": 2,
+  "builds": [
+    { "src": "api/index.mjs", "use": "@vercel/node" },
+    { "src": "artifacts/agentmilton/package.json", "use": "@vercel/static-build", "config": { "distDir": "artifacts/agentmilton/dist/public" } }
+  ],
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/api/index.mjs" },
+    { "src": "/(.*)", "dest": "/artifacts/agentmilton/dist/public/$1" }
+  ]
 }
