@@ -63,7 +63,6 @@ export default function Login() {
             <p className="mt-2 text-sm text-muted-foreground">Sign in to continue to your workspace.</p>
           </div>
           {passwordUpdated && <div data-testid="status-password-updated" className="mb-5 rounded-lg border border-primary/25 bg-primary/[.07] px-4 py-3 text-sm text-primary">Password updated. Sign in with your new password.</div>}
-          {session.isError && <div role="status" className="mb-5 rounded-lg border border-amber-400/20 bg-amber-400/[.05] px-4 py-3 text-xs leading-5 text-amber-200/80">Owner sign-in setup is unavailable. Check the server connection and bootstrap secret, then reload.</div>}
           <form onSubmit={submit} className="space-y-5">
             <label className="block">
               <span className="mb-2 block text-xs font-medium text-foreground/80">Owner name</span>
@@ -74,8 +73,8 @@ export default function Login() {
               <span className="relative block"><LockKeyhole size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" /><input autoComplete="current-password" required maxLength={256} type={showPassword ? 'text' : 'password'} value={password} onChange={(event) => setPassword(event.target.value)} data-testid="input-password" className="h-12 w-full rounded-lg border border-input bg-card/70 pl-10 pr-11 text-sm transition placeholder:text-muted-foreground/60 focus:border-primary/60 focus:bg-card" placeholder="Enter your password" /><button type="button" aria-label={showPassword ? 'Hide password' : 'Show password'} data-testid="button-toggle-password" onClick={() => setShowPassword((value) => !value)} className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground">{showPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button></span>
             </label>
             {formError && <p data-testid="status-login-error" role="alert" className="rounded-lg border border-destructive/25 bg-destructive/[.06] px-3.5 py-3 text-xs text-red-200">{formError}</p>}
-            <button type="submit" disabled={login.isPending || !username.trim() || !password} data-testid="button-login" className="group flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-55">
-              {login.isPending ? 'Verifying access…' : 'Enter workspace'} {!login.isPending && <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />}
+            <button type="submit" disabled={!username.trim() || !password} data-testid="button-login" className="group flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-55">
+              Enter workspace <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
             </button>
           </form>
           <div className="mt-7 flex items-center justify-center gap-2 text-[11px] text-muted-foreground"><ShieldCheck size={13} /> Credentials are never saved on this device</div>

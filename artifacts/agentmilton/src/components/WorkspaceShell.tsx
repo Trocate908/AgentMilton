@@ -54,12 +54,12 @@ export function WorkspaceShell({ children, username }: Props) {
           <div className="flex items-center gap-3 px-2">
             <span className="grid size-8 place-items-center rounded-full border border-sidebar-border bg-sidebar-accent font-serif text-xs font-bold uppercase text-primary">{username.slice(0, 1)}</span>
             <div className="min-w-0 flex-1"><div data-testid="text-owner-username" className="truncate text-xs font-medium">{username}</div><div className="mt-0.5 text-[10px] text-muted-foreground">Workspace owner</div></div>
-            <button type="button" aria-label="Sign out" data-testid="button-sign-out" onClick={signOut} disabled={logout.isPending} className="rounded-md p-2 text-muted-foreground transition hover:bg-sidebar-accent hover:text-foreground disabled:opacity-50"><LogOut size={15} /></button>
+            <button type="button" aria-label="Sign out" data-testid="button-sign-out" onClick={signOut} disabled={false} className="rounded-md p-2 text-muted-foreground transition hover:bg-sidebar-accent hover:text-foreground disabled:opacity-50"><LogOut size={15} /></button>
           </div>
         </div>
         <div className="flex items-center justify-between px-5 pb-4 text-[10px] text-muted-foreground md:hidden">
           <span className="mono flex items-center gap-2"><span className={`size-1.5 rounded-full ${health.isError ? 'bg-amber-400' : 'bg-primary'}`} />API {apiState}</span>
-          <button type="button" data-testid="button-sign-out-mobile" onClick={signOut} disabled={logout.isPending} className="flex items-center gap-1.5"><LogOut size={13} /> Sign out</button>
+          <button type="button" data-testid="button-sign-out-mobile" onClick={signOut} disabled={false} className="flex items-center gap-1.5"><LogOut size={13} /> Sign out</button>
         </div>
       </aside>
       <main className="min-h-[calc(100dvh-120px)] flex-1 bg-[radial-gradient(circle_at_top_right,hsl(var(--primary)/.07),transparent_34rem)] md:ml-[248px]">
